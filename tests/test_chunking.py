@@ -18,3 +18,12 @@ def test_long_sentence_is_hard_split():
     chunks = chunk_text("가" * 300, ntok, max_tok=102, overlap=10)
     assert all(len(c) <= 100 for c in chunks)
     assert "".join(chunks) == "가" * 300
+
+
+def test_bare_angle_brackets_do_not_swallow_sections():
+    from finsight.dart_parse import parse_document
+    xml = ("<DOCUMENT><BODY><SECTION-1><TITLE>II. 사업의 내용</TITLE><TABLE><TBODY><TR><TD><금융자산></TD>"
+           "<TD>1</TD></TR></TBODY></TABLE></SECTION-1>"
+           "<SECTION-1><TITLE>III. 재무에 관한 사항</TITLE><P>본문</P></SECTION-1></BODY></DOCUMENT>").encode()
+    secs = {b["sec1"] for b in parse_document(xml)}
+    assert secs == {"II. 사업의 내용", "III. 재무에 관한 사항"}

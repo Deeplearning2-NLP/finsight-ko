@@ -10,6 +10,9 @@
 | 2026-10-20 | Claude Code (서버) | FinDartBench | `python scripts/download_data.py --only findartbench` (149MB) | 14,444 QA / 사업보고서 5,638 QA, 고유 context 195개, doc_id 486개 |
 | 2026-10-20 | Claude Code (서버) | OpenDART 재무제표 | `fnlttSinglAcntAll` (CFS, 11011, 2024) via `finsight.opendart` | 삼성전자·SK하이닉스·현대자동차·기아·HMM·한국전력공사 6건, `data/raw/opendart/` 캐시 |
 | 2026-10-20 | Claude Code (서버) | OpenDART 원문 | `corpCode.xml`, `list.json`, `document.xml` | corpCode 1건, list 6건, 원문 1건(삼성전자 20250311001085, ZIP 내 XML 3개, 본문 6.3MB) |
+| 2026-10-20 | Claude Code (서버) | OpenDART 원문 30건 (안 A) | `scripts/build_corpus.py`: list.json 10회 + document.xml 30건 (캐시) | 10개사 × FY2022–2024 30건 → `data/processed/corpus_a.jsonl` 34,427청크. 국민은행은 corp_code 00386937 |
+| 2026-10-20 | Claude Code (서버) | OpenDART 재무제표 30건 | `scripts/build_financials.py`: fnlttSinglAcntAll 30건 (+국민은행 FY2022 OFS 1건) | `data/processed/financials_a.csv` 180행 중 169칸 값 있음 |
+| 2026-10-20 | Claude Code (서버) | 수치형 자동 문항 | `scripts/make_numeric_questions.py` (템플릿, LLM 없음) | `data/eval/numeric_auto.jsonl` 369문항 |
 
 ## 이용 조건 확인
 - Dartdoc: CC-BY-4.0 — 출처 표기.

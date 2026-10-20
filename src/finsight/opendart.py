@@ -56,15 +56,21 @@ def _get(endpoint: str, params: dict, ext: str) -> bytes:
 
 
 def corp_codes() -> dict[str, dict]:
-    """corp_name -> {corp_code, stock_code} (listed companies win on name clashes)."""
+    """corp_name -> {corp_code, stock_code, modify_date}.
+
+    Several codes can share a name (e.g. 국민은행: two dormant 2017 entries and the active bank).
+    The most recently modified entry wins; listed status breaks ties.
+    """
     xml_path = CACHE / "CORPCODE.xml"
     if not xml_path.exists():
         zipfile.ZipFile(io.BytesIO(_get("corpCode", {}, "zip"))).extractall(CACHE)
     out: dict[str, dict] = {}
     for el in ET.parse(xml_path).getroot().iter("list"):
         name = el.findtext("corp_name").strip()
-        rec = {"corp_code": el.findtext("corp_code").strip(), "stock_code": el.findtext("stock_code").strip()}
-        if name not in out or (rec["stock_code"] and not out[name]["stock_code"]):
+        rec = {"corp_code": el.findtext("corp_code").strip(), "stock_code": el.findtext("stock_code").strip(),
+               "modify_date": el.findtext("modify_date").strip()}
+        if name not in out or (rec["modify_date"], bool(rec["stock_code"])) > \
+                (out[name]["modify_date"], bool(out[name]["stock_code"])):
             out[name] = rec
     return out
 
