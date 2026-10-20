@@ -4,6 +4,8 @@
 재현: `scripts/download_data.py` → `dartdoc_stats.py` → `opendart_parse_one.py` → `eval_findartbench_retrieval.py` → `train_embedding_smoke.py`. seed 42.
 투자 권유 아님.
 
+> **예비 결과임에 주의.** 4·5·7절의 검색 수치는 FinDartBench 근거 문단 195개(784청크)라는 작은 코퍼스에서 LLM이 만든 질문으로 잰 값이라 실제보다 높게 나온다. 미세조정 스모크(7절)는 학습·테스트가 같은 10개사다. 본 실험은 범위 안 A(10개사 × 2022–2024 원문 30건 코퍼스)와 자체 평가셋(약 200문항, 30% 사람 작성)으로 다시 잰다. **범위는 2026-10-20 안 A로 확정.**
+
 ## 슬라이드별 핵심 숫자 (맨 위 요약)
 | 슬라이드 | 넣을 숫자 |
 |---|---|
