@@ -5,13 +5,15 @@
 | 날짜 | 담당 | 데이터 | 방법 | 건수·비고 |
 |---|---|---|---|---|
 | 2026-10-16 | 임병건 | AutoRAGRetrieval | `scripts/download_autorag.sh` (GitHub raw) | 질문 114, 문서 720 |
-| | | Dartdoc | HF `chaannwooff/Dartdoc` | |
-| | | FinDartBench | HF `davidkim205/FinDartBench` | |
-| | | OpenDART 재무제표 | `fnlttSinglAcntAll` | |
-| | | OpenDART 원문 | `document.xml` | |
+| 2026-10-20 | Claude Code (서버) | AutoRAGRetrieval | `python scripts/download_data.py --only autorag` | 질문 114, 문서 720 (재확인) |
+| 2026-10-20 | Claude Code (서버) | Dartdoc | `python scripts/download_data.py --only dartdoc` (HF snapshot, jsonl 25개, 1.1GB) | 256,548청크 / 사업보고서 189,812청크·10,418건·3,426개사. 사업연도별 최신본만 남기면 8,702건·156,612청크 |
+| 2026-10-20 | Claude Code (서버) | FinDartBench | `python scripts/download_data.py --only findartbench` (149MB) | 14,444 QA / 사업보고서 5,638 QA, 고유 context 195개, doc_id 486개 |
+| 2026-10-20 | Claude Code (서버) | OpenDART 재무제표 | `fnlttSinglAcntAll` (CFS, 11011, 2024) via `finsight.opendart` | 삼성전자·SK하이닉스·현대자동차·기아·HMM·한국전력공사 6건, `data/raw/opendart/` 캐시 |
+| 2026-10-20 | Claude Code (서버) | OpenDART 원문 | `corpCode.xml`, `list.json`, `document.xml` | corpCode 1건, list 6건, 원문 1건(삼성전자 20250311001085, ZIP 내 XML 3개, 본문 6.3MB) |
 
 ## 이용 조건 확인
 - Dartdoc: CC-BY-4.0 — 출처 표기.
+  - 확인된 한계 (2026-10-20): FinDartBench 10개사 중 7개사는 사업연도 2022–2023 사업보고서가 없음 (삼성전자는 FY2024 섹션 II 11청크뿐, IV 없음). 표의 숫자 셀이 대부분 빠지고 머리글만 남음 (예: 한국전력 II/6 "나. 생산실적 (단위 : GWh) 사업구분 구분 2024년 …"에 값 없음). 같은 문단이 II와 IV에 중복되는 경우 있음 (HMM FY2024 II/8 = IV/1).
 - FinDartBench: CC BY-NC 4.0 — 수업용 비상업 사용, 재배포 금지.
 - OpenDART: 무료 인증키(개인 1개), 일 호출 한도 있음(약 2만 건으로 알려짐, 이용현황에서 확인), 키 비공개.
 - AutoRAG 벤치마크: 저장소 라이선스 확인 후 기재.

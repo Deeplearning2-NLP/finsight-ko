@@ -24,7 +24,7 @@
 - Ubuntu 22.04, 계정 `urp_jwl` (접속 정보는 레포에 적지 않는다)
 - 2026-10-20 접속 시 상태: `/home` 92.2% 사용 (약 60GB 남음, 공유), swap 94%, 동시 접속 3명
 - 규칙:
-  - 디스크: 데이터는 `~/finsight-ko/data/`, HF 캐시는 `export HF_HOME=~/hf_cache`로 한 곳에. 체크포인트는 최고 1–2개만 저장. 큰 작업 전 `df -h ~` 확인.
+  - 디스크: `/home`이 거의 차 있으므로(22GB) 데이터·캐시는 `/mnt/urp_jwl_shared/bk/` 아래 (`finsight-ko/data/`, `HF_HOME=/mnt/urp_jwl_shared/bk/hf_cache`). 체크포인트는 최고 1–2개만 저장. 큰 작업 전 `df -h ~` 확인.
   - GPU: 쓰기 전 `nvidia-smi`로 빈 GPU 확인 후 `CUDA_VISIBLE_DEVICES` 지정. 다른 사람 프로세스 건드리지 않기.
   - 메모리: 큰 parquet는 필요한 컬럼만, 청크 단위로 읽기.
   - 오래 걸리는 작업은 `tmux` 안에서, 로그는 파일로.
@@ -33,9 +33,10 @@
 ## 환경 점검 결과 (서버 세션이 채움)
 | 항목 | 결과 |
 |---|---|
-| GPU | |
-| Python / CUDA / torch | |
-| 디스크 여유 (`df -h ~`) | |
-| github.com / huggingface.co / pypi.org / opendart.fss.or.kr 접속 | |
-| `pytest -q` | |
-| git push 가능 여부 | |
+| GPU | RTX 4090 24GB × 4 (2026-10-20 06:36 모두 유휴), 드라이버 580.173, CUDA 13.0 |
+| Python / CUDA / torch | Python 3.10.12, nvcc 12.8, torch 2.11.0+cu128, transformers 5.20.2, sentence-transformers 6.1.0 |
+| 디스크 여유 (`df -h ~`) | `/home` 22GB 남음 (98% 사용, 문서의 60GB보다 적음). `du -sh ~` 6.8GB. RAM 125GB, swap 8GB 중 7.5GB 사용 |
+| 작업 위치 | 레포·데이터·HF 캐시를 `/mnt/urp_jwl_shared/bk/` (NFS, 4.4TB 여유)에 둠: 레포 `/mnt/urp_jwl_shared/bk/finsight-ko`, `HF_HOME=/mnt/urp_jwl_shared/bk/hf_cache` (`.bashrc`에 추가). `/home`은 쓰지 않음 |
+| github.com / huggingface.co / pypi.org / opendart.fss.or.kr 접속 | 200 / 200 / 200 / 302 (리다이렉트, API 정상 응답 확인) |
+| `pytest -q` | 24 passed |
+| git push 가능 여부 | 불가 (HTTPS 인증 정보 없음, `gh` 미로그인) → `gh auth login` 또는 PAT 필요 |
