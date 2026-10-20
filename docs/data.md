@@ -13,6 +13,7 @@
 | 2026-10-20 | Claude Code (서버) | OpenDART 원문 30건 (안 A) | `scripts/build_corpus.py`: list.json 10회 + document.xml 30건 (캐시) | 10개사 × FY2022–2024 30건 → `data/processed/corpus_a.jsonl` 34,427청크. 국민은행은 corp_code 00386937 |
 | 2026-10-20 | Claude Code (서버) | OpenDART 재무제표 30건 | `scripts/build_financials.py`: fnlttSinglAcntAll 30건 (+국민은행 FY2022 OFS 1건) | `data/processed/financials_a.csv` 180행 중 169칸 값 있음 |
 | 2026-10-20 | Claude Code (서버) | 수치형 자동 문항 | `scripts/make_numeric_questions.py` (템플릿, LLM 없음) | `data/eval/numeric_auto.jsonl` 369문항 |
+| 2026-10-20 | Claude Code (서버) | 학습 쌍 파일럿 원천 | `scripts/pairs_pilot_chunks.py` (Dartdoc, 평가 10개사 제외 20개사 × FY2022–2024, II·IV) | 512토큰 재분할 풀 8,883개, 원천 240청크 → `data/train/pilot_*.jsonl` |
 
 ## 이용 조건 확인
 - Dartdoc: CC-BY-4.0 — 출처 표기.
@@ -25,4 +26,4 @@
 | 데이터 | 생성 모델 | 생성 수 | 사람 검수 수 | 사람 직접 작성 수 |
 |---|---|---|---|---|
 | 평가셋 | | | | |
-| 미세조정 학습 쌍 | | | | |
+| 미세조정 학습 쌍 (파일럿) | Qwen/Qwen2.5-7B-Instruct (snapshot a09a3545, vLLM 0.31.0, T=0.7, top_p=0.9, seed 42) | 474 질문 → 300쌍 | 30쌍 직접 판정 (답 가능 9 / 베끼기 4 / 모호 5 / 오류 12) | 0 |
