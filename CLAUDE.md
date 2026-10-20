@@ -13,7 +13,7 @@ DART 사업보고서(한국어)를 기업·사업연도별로 검색·비교하�
 - 틀린 예 약 30개를 직접 읽고 유형별로 정리하는 **오류 분석**은 필수.
 - RAG·에이전트·데모는 확장 목표(15주차 내용). 12주차 중간 발표(11/16 주간)까지 기준선 + 첫 미세조정 결과가 나와야 함.
 
-> 진행 상황과 남은 할 일은 `docs/feedback-response.md` 대응표를 기준으로 한다. 처음이면 `docs/handoff.md`, 이번 주 작업은 `docs/proposal-tasks.md`(T0–T7, 완료) → `docs/proposal-tasks-2.md`(P1–P5).
+> 진행 상황과 남은 할 일은 `docs/feedback-response.md` 대응표를 기준으로 한다. 처음이면 `docs/handoff.md`, 이번 주 작업은 `docs/proposal-tasks.md`(T0–T7, 완료) → `docs/proposal-tasks-2.md`(P1–P5, 완료) → `docs/proposal-tasks-3.md`(Q1–Q7).
 
 ## 대표 실험
 1. **검색 임베딩 미세조정 (핵심):** 사업보고서로 만든 "질문–근거 문단" 쌍(LLM 생성 + 검수, 수천 개)으로 한국어 BERT 계열 임베딩(KURE-v1 / KoE5 / KLUE-BERT 기반)을 대조 학습. 같은 회사 다른 사업연도 문단을 hard negative로 사용.
