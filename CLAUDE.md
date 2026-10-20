@@ -13,6 +13,8 @@ DART 사업보고서(한국어)를 기업·사업연도별로 검색·비교하�
 - 틀린 예 약 30개를 직접 읽고 유형별로 정리하는 **오류 분석**은 필수.
 - RAG·에이전트·데모는 확장 목표(15주차 내용). 12주차 중간 발표(11/16 주간)까지 기준선 + 첫 미세조정 결과가 나와야 함.
 
+> 진행 상황과 남은 할 일은 `docs/feedback-response.md` 대응표를 기준으로 한다.
+
 ## 대표 실험
 1. **검색 임베딩 미세조정 (핵심):** 사업보고서로 만든 "질문–근거 문단" 쌍(LLM 생성 + 검수, 수천 개)으로 한국어 BERT 계열 임베딩(KURE-v1 / KoE5 / KLUE-BERT 기반)을 대조 학습. 같은 회사 다른 사업연도 문단을 hard negative로 사용.
    비교: 공백 BM25 → 형태소 BM25 → 공개 임베딩 → **미세조정 임베딩** → 하이브리드 → (선택) 재정렬.
@@ -54,7 +56,7 @@ DART 사업보고서(한국어)를 기업·사업연도별로 검색·비교하�
 src/finsight/   # 라이브러리 코드 (tokenize, bm25, metrics, numbers, metadata)
 scripts/        # 실행 스크립트 (평가, 데이터 수집, 학습)
 tests/          # pytest
-docs/           # decisions.md(결정 로그), data.md(데이터 출처·수집 기록)
+docs/           # feedback-response.md(교수님 피드백 대응표), decisions.md(결정 로그), data.md(데이터 출처)
 data/           # git-ignored. 절대 커밋 금지
 ```
 - 테스트: `pytest -q`. 숫자 정규화·메타데이터 파싱은 테스트 먼저.
