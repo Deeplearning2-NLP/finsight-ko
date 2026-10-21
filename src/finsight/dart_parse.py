@@ -79,7 +79,9 @@ def table_rows(table) -> tuple[list[list[str]], int]:
 
 # "<금융자산>" etc. appear unescaped in some filings; lxml's recovery then nests every later
 # SECTION inside that bogus element. Escape "<" unless it starts a real (ASCII) tag.
-_BARE_LT = re.compile(rb"<(?![/A-Za-z?!])")
+# A real tag name is ASCII and ends with whitespace, "/" or ">"; "<JB금융지주>" (JB금융지주 FY2022-2024)
+# starts with ASCII letters but is text, so the name has to be checked to its end.
+_BARE_LT = re.compile(rb"<(?![?!]|/?[A-Za-z][A-Za-z0-9_.:\-]*[\s/>])")
 _BARE_AMP = re.compile(rb"&(?!#?\w+;)")
 # English-translation attributes sometimes contain stray quotes (현대자동차·기아 FY2024:
 # ENG="Other receivables"" / ENG="　"Proceeds from ..."") which break the tag; we never use them.

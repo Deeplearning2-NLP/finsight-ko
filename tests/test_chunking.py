@@ -27,3 +27,10 @@ def test_bare_angle_brackets_do_not_swallow_sections():
            "<SECTION-1><TITLE>III. 재무에 관한 사항</TITLE><P>본문</P></SECTION-1></BODY></DOCUMENT>").encode()
     secs = {b["sec1"] for b in parse_document(xml)}
     assert secs == {"II. 사업의 내용", "III. 재무에 관한 사항"}
+
+
+def test_ascii_prefixed_bracket_text_is_not_a_tag():
+    from finsight.dart_parse import parse_document
+    xml = ("<DOCUMENT><BODY><SECTION-1><TITLE>I. 회사의 개요</TITLE><P><JB금융지주></P></SECTION-1>"
+           "<SECTION-1><TITLE>II. 사업의 내용</TITLE><P>본문</P></SECTION-1></BODY></DOCUMENT>").encode()
+    assert {b["sec1"] for b in parse_document(xml)} == {"I. 회사의 개요", "II. 사업의 내용"}

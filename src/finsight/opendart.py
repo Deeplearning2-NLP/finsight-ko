@@ -75,6 +75,20 @@ def corp_codes() -> dict[str, dict]:
     return out
 
 
+def corp_code_candidates(name: str) -> list[dict]:
+    """All corpCode entries with this exact name, most recently modified first (listed breaks ties).
+
+    corp_codes() keeps only the first of these; callers that need filings should try them in order
+    (현대엔지니어링: the newest code 01465666 has no 사업보고서, 00349927 has)."""
+    xml_path = CACHE / "CORPCODE.xml"
+    if not xml_path.exists():
+        corp_codes()
+    out = [{"corp_code": el.findtext("corp_code").strip(), "stock_code": el.findtext("stock_code").strip(),
+            "modify_date": el.findtext("modify_date").strip()}
+           for el in ET.parse(xml_path).getroot().iter("list") if el.findtext("corp_name").strip() == name]
+    return sorted(out, key=lambda r: (r["modify_date"], bool(r["stock_code"])), reverse=True)
+
+
 def list_filings(corp_code: str, bgn_de: str, end_de: str, detail: str = "A001") -> list[dict]:
     """Filings list (A001 = 사업보고서)."""
     js = json.loads(_get("list", {"corp_code": corp_code, "bgn_de": bgn_de, "end_de": end_de,

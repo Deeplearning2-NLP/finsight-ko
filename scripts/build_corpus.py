@@ -6,8 +6,11 @@
   -> <=512-token chunks (KURE-v1 tokenizer, overlap 50, final re-count).
 All API calls are cached by finsight.opendart.
 
-Usage: python scripts/build_corpus.py
-Outputs: data/processed/corpus_a.jsonl, data/processed/filings_a.csv, outputs/proposal/corpus_a_stats.json
+Training companies (R2): `--set train` builds the same corpus for the 20 non-evaluation companies of the
+pair pilot (scripts/pairs_pilot_chunks.PILOT); the script asserts that the two company sets are disjoint.
+
+Usage: python scripts/build_corpus.py [--set eval|train]
+Outputs: data/processed/corpus_<a|train>.jsonl, filings_<a|train>.csv, outputs/proposal/corpus_<a|train>_stats.json
 """
 from __future__ import annotations
 
@@ -29,6 +32,15 @@ OUT = ROOT / "outputs" / "proposal"
 COMPANIES = ["삼성전자", "SK하이닉스", "LG전자", "현대자동차", "기아", "SK텔레콤",
              "한국전력공사", "국민은행", "HMM", "두나무"]
 YEARS = [2022, 2023, 2024]
+
+
+def train_companies() -> list[str]:
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from pairs_pilot_chunks import PILOT
+    comps = [c for cs in PILOT.values() for c in cs]
+    assert len(comps) == 20 and not set(comps) & set(COMPANIES), "training companies overlap evaluation companies"
+    return comps
 CORE_SECTIONS = ("II.", "IV.")
 
 
@@ -58,6 +70,7 @@ def describe(x) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--tokenizer", default="nlpai-lab/KURE-v1")
+    ap.add_argument("--set", default="eval", choices=["eval", "train"])
     args = ap.parse_args()
     PROC.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -69,11 +82,18 @@ def main() -> None:
 
     codes = od.corp_codes()
     filings, all_cands, failures = [], [], []
-    for corp in COMPANIES:
+    companies = COMPANIES if args.set == "eval" else train_companies()
+    tag = "a" if args.set == "eval" else "train"
+    for corp in companies:
         if corp not in codes:
             failures.append({"corp_name": corp, "reason": "corpCode에 없음"})
             continue
         picked, cands = pick_filings(corp, codes[corp]["corp_code"])
+        if not picked:  # same-name entries: try the other corp codes (현대엔지니어링)
+            for alt in od.corp_code_candidates(corp)[1:]:
+                picked, cands = pick_filings(corp, alt["corp_code"])
+                if picked:
+                    break
         all_cands += cands
         filings += picked
         for y in sorted(set(YEARS) - {p["fiscal_year"] for p in picked}):
@@ -81,7 +101,7 @@ def main() -> None:
 
     rows = []
     per_report = []
-    with open(PROC / "corpus_a.jsonl", "w", encoding="utf-8") as fout:
+    with open(PROC / f"corpus_{tag}.jsonl", "w", encoding="utf-8") as fout:
         for f in filings:
             try:
                 files = od.document(f["rcept_no"])
@@ -113,11 +133,11 @@ def main() -> None:
                                "missing_sections": missing})
             print(per_report[-1], flush=True)
 
-    pd.DataFrame(filings).to_csv(PROC / "filings_a.csv", index=False, encoding="utf-8-sig")
+    pd.DataFrame(filings).to_csv(PROC / f"filings_{tag}.csv", index=False, encoding="utf-8-sig")
     df = pd.DataFrame(rows)
     core = df[df.is_core_section]
     stats = {
-        "reports": len(per_report), "expected": len(COMPANIES) * len(YEARS),
+        "reports": len(per_report), "expected": len(companies) * len(YEARS),
         "failures": failures,
         "amended_latest": [f"{f['corp_name']} FY{f['fiscal_year']} {f['report_nm']}" for f in filings if f["is_amended"]],
         "superseded_filings": len(all_cands) - len(filings),
@@ -133,7 +153,7 @@ def main() -> None:
         "chunks_by_corp_year_II_IV": {f"{k[0]}|{k[1]}": int(v) for k, v in core.groupby(["corp_name", "fiscal_year"]).size().items()},
         "per_report": per_report,
     }
-    (OUT / "corpus_a_stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=1))
+    (OUT / f"corpus_{tag}_stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=1))
     print(json.dumps({k: v for k, v in stats.items() if not k.startswith(("chunks_by", "per_report"))},
                      ensure_ascii=False, indent=1))
 
