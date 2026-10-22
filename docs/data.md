@@ -17,6 +17,7 @@
 | 2026-10-21 | Claude Code (서버) | OpenDART 원문 60건 (학습용 20개사) | `scripts/build_corpus.py --set train`: list.json 22회 + document.xml 60건 (캐시, 오늘 약 82회) | `data/processed/corpus_train.jsonl` 48,712청크, `filings_train.csv`. 현대엔지니어링 corp_code 00349927 |
 | 2026-10-21 | Claude Code (서버) | 질문 메타데이터 라벨 | FinDartBench dev 130문항을 직접 읽고 회사·사업연도 라벨 (qid와 라벨만 저장) | `data/eval/r1_meta_labels.json` (100 + held-out 30) |
 | 2026-10-21 | Claude Code (서버) | 학습 쌍 재파일럿 (원문) | `pairs_r2_chunks.py` → `pairs_pilot_generate.py --prefix r2` → `pairs_r2_build.py` | 360청크 → 질문 716 → 필터 후 517 → `data/train/pairs_r2.jsonl` 300쌍 |
+| 2026-10-22 | Claude Code (서버) | 학습 쌍 본 생성 1차 (S1) | `pairs_r2_chunks.py --per 65` → `pairs_pilot_generate.py --prefix s1` → `pairs_r2_build.py --prefix s1 --n-pairs 5000` | 3,539청크 → 질문 7,017 → 필터 후 5,129 → `data/train/pairs_s1.jsonl` 5,000쌍 (hard negative 4,999) |
 
 ## 이용 조건 확인
 - Dartdoc: CC-BY-4.0 — 출처 표기.
@@ -29,5 +30,6 @@
 | 데이터 | 생성 모델 | 생성 수 | 사람 검수 수 | 사람 직접 작성 수 |
 |---|---|---|---|---|
 | 평가셋 | | | | |
+| 미세조정 학습 쌍 (본 생성 1차 S1, 원문) | Qwen/Qwen2.5-7B-Instruct (snapshot a09a3545, vLLM 0.31.0, T=0.7, top_p=0.9, seed 42) | 7,017 질문 → 필터 5,129 → 5,000쌍 | 0 (R2 파이프라인 30쌍 판정 80%를 근거로 인용) | 0 |
 | 미세조정 학습 쌍 (재파일럿 R2, 원문) | Qwen/Qwen2.5-7B-Instruct (snapshot a09a3545, vLLM 0.31.0, T=0.7, top_p=0.9, seed 42) | 716 질문 → 필터 517 → 300쌍 | 30쌍 직접 판정 (답 가능 20 / 베끼기 4 / 모호 3 / 오류 3) | 0 |
 | 미세조정 학습 쌍 (파일럿) | Qwen/Qwen2.5-7B-Instruct (snapshot a09a3545, vLLM 0.31.0, T=0.7, top_p=0.9, seed 42) | 474 질문 → 300쌍 | 30쌍 직접 판정 (답 가능 9 / 베끼기 4 / 모호 5 / 오류 12) | 0 |

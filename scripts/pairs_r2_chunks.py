@@ -6,8 +6,8 @@
 - Chunks under 150 tokens are skipped; N per company x fiscal year at random (seed 42).
 - Asserts the training companies are disjoint from the 10 evaluation companies.
 
-Usage: python scripts/pairs_r2_chunks.py [--per 6]
-Output: data/train/r2_source_chunks.jsonl
+Usage: python scripts/pairs_r2_chunks.py [--per 6] [--out r2_source_chunks.jsonl]   (S1: --per 65 --out s1_source_chunks.jsonl)
+Output: data/train/<out>
 """
 from __future__ import annotations
 
@@ -37,6 +37,7 @@ def value_table(text: str, is_table: bool) -> bool:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--per", type=int, default=6)
+    ap.add_argument("--out", default="r2_source_chunks.jsonl")
     args = ap.parse_args()
     industry = {c: ind for ind, cs in PILOT.items() for c in cs}
     assert len(industry) == 20 and not set(industry) & set(EVAL_COMPANIES), "train/eval company overlap"
@@ -55,7 +56,7 @@ def main() -> None:
                            "rcept_no": r.rcept_no, "section_path": r.section_path, "is_table": bool(r.is_table),
                            "value_table": bool(r.value_table), "n_tokens": int(r.n_tokens), "text": r.text})
     TRAIN.mkdir(parents=True, exist_ok=True)
-    with open(TRAIN / "r2_source_chunks.jsonl", "w", encoding="utf-8") as f:
+    with open(TRAIN / args.out, "w", encoding="utf-8") as f:
         for p in picked:
             f.write(json.dumps(p, ensure_ascii=False) + "\n")
     pk = pd.DataFrame(picked)

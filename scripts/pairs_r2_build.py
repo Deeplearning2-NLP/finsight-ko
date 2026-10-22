@@ -75,11 +75,17 @@ def norm(s: str) -> str:
 
 
 def main() -> None:
-    src = {c["chunk_id"]: c for c in map(json.loads, open(TRAIN / "r2_source_chunks.jsonl", encoding="utf-8"))}
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--prefix", default="r2", help="r2 (re-pilot) or s1 (main generation)")
+    ap.add_argument("--n-pairs", type=int, default=N_PAIRS)
+    args = ap.parse_args()
+    pre = args.prefix
+    src = {c["chunk_id"]: c for c in map(json.loads, open(TRAIN / f"{pre}_source_chunks.jsonl", encoding="utf-8"))}
     pool = pd.read_json(ROOT / "data/processed/corpus_train.jsonl", lines=True, dtype={"rcept_no": str, "chunk_id": str})
     pool["sec1"] = pool.section_path.str.split(" > ").str[0]
-    gens = [json.loads(l) for l in open(TRAIN / "r2_generations.jsonl", encoding="utf-8")]
-    cfg = json.loads((TRAIN / "r2_generation_config.json").read_text())
+    gens = [json.loads(l) for l in open(TRAIN / f"{pre}_generations.jsonl", encoding="utf-8")]
+    cfg = json.loads((TRAIN / f"{pre}_generation_config.json").read_text())
     aliases = {c: [c] + EXTRA_ALIASES.get(c, []) for c in pool.corp_name.unique()}
 
     stage = Counter()
@@ -118,17 +124,23 @@ def main() -> None:
 
     idx = list(range(len(kept)))
     random.Random(SEED).shuffle(idx)
-    sample = [kept[i] for i in sorted(idx[:N_PAIRS])]
+    sample = [kept[i] for i in sorted(idx[:args.n_pairs])]
 
     pool_tok = {cid: content_morphs(t) for cid, t in zip(pool.chunk_id, pool.text)}
     pairs, skipped_neg = [], Counter()
+    groups = {k: g for k, g in pool.groupby(["corp_name", "sec1"])}
+    bm_cache: dict = {}
     for i, r in enumerate(sample):
         c = src[r["chunk_id"]]
         sec1 = c["section_path"].split(" > ")[0]
-        cand = pool[(pool.corp_name == c["corp_name"]) & (pool.sec1 == sec1) & (pool.fiscal_year != c["fiscal_year"])]
+        key = (c["corp_name"], sec1, c["fiscal_year"])
+        g = groups.get((c["corp_name"], sec1))
+        cand = g[g.fiscal_year != c["fiscal_year"]] if g is not None else pool.iloc[:0]
         neg = None
         if len(cand):
-            bm = BM25Okapi([pool_tok[x] for x in cand.chunk_id])
+            if key not in bm_cache:  # one BM25 index per company / section / excluded year
+                bm_cache[key] = BM25Okapi([pool_tok[x] for x in cand.chunk_id])
+            bm = bm_cache[key]
             order = np.argsort(-bm.get_scores(content_morphs(r["question"])))
             pg, an = grams(c["text"]), norm(r["answer"])
             ans_nums = {t.replace(",", "") for t in NUM.findall(r["answer"])
@@ -149,7 +161,7 @@ def main() -> None:
                 neg = cnd
                 break
         qt, pt = set(content_morphs(r["question"])), set(pool_tok[c["chunk_id"]])
-        pairs.append({"pair_id": f"r2-{i + 1:04d}", "anchor": r["question"], "positive": c["text"],
+        pairs.append({"pair_id": f"{pre}-{i + 1:05d}", "anchor": r["question"], "positive": c["text"],
                       "positive_id": c["chunk_id"], "negative": None if neg is None else neg.text,
                       "negative_id": None if neg is None else neg.chunk_id,
                       "negative_fiscal_year": None if neg is None else int(neg.fiscal_year),
@@ -157,11 +169,12 @@ def main() -> None:
                       "section_path": c["section_path"], "value_table": c["value_table"], "answer": r["answer"],
                       "is_numeric": r["is_numeric"], "number_check": r.get("number_check"),
                       "lexical_jaccard": round(jaccard(qt, pt), 4),
-                      "generated_by": "llm:" + cfg["model"].split("/")[-1], "review": None})
-    with open(TRAIN / "pairs_r2.jsonl", "w", encoding="utf-8") as f:
+                      "generated_by": "llm:" + cfg["model"].split("/")[-1],
+                      "review": None if pre == "r2" else "none (0% human review)"})
+    with open(TRAIN / f"pairs_{pre}.jsonl", "w", encoding="utf-8") as f:
         for p in pairs:
             f.write(json.dumps(p, ensure_ascii=False) + "\n")
-    with open(TRAIN / "pairs_r2_dropped.jsonl", "w", encoding="utf-8") as f:
+    with open(TRAIN / f"pairs_{pre}_dropped.jsonl", "w", encoding="utf-8") as f:
         for d in dropped:
             f.write(json.dumps(d, ensure_ascii=False) + "\n")
 
@@ -179,8 +192,11 @@ def main() -> None:
              "lexical_jaccard_r2": describe(pdf.lexical_jaccard),
              "lexical_jaccard_findartbench_ref": describe(fdb_j),
              "by_industry": pdf.industry.value_counts().to_dict()}
-    (OUT / "pairs_r2_stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=1, default=str))
+    (OUT / f"pairs_{pre}_stats.json").write_text(json.dumps(stats, ensure_ascii=False, indent=1, default=str))
 
+    if pre != "r2":
+        print(json.dumps(stats, ensure_ascii=False, indent=1, default=str))
+        return
     review = random.Random(SEED).sample(pairs, 30)
     lines = ["# 학습 쌍 재파일럿(R2, OpenDART 원문) 검수 30쌍", "",
              f"`data/train/pairs_r2.jsonl` {len(pairs)}쌍 중 seed {SEED}로 30쌍.", ""]
