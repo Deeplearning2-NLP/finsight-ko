@@ -7,7 +7,8 @@ Usage: CUDA_VISIBLE_DEVICES=1 /mnt/urp_jwl_shared/bk/vllm-venv/bin/python script
        [--in r2_source_chunks.jsonl --prefix r2]   (R2: OpenDART originals)
 Outputs: data/train/<prefix>_generations.jsonl, data/train/<prefix>_generation_config.json
 
-Rule 4 (numeric question) depends on the chunk: Q6 chunks have no `value_table` field and keep the
+Rule 1 (company / year wording) can be set per chunk (`rule1`, M1 format mix); otherwise the original
+rule. Rule 4 (numeric question) depends on the chunk (`rule4_key` if present, else `value_table`): Q6 chunks have no `value_table` field and keep the
 original rule; R2 chunks ask for a numeric question only when `value_table` is true (a table chunk
 with numbers), and forbid it otherwise (Q6 lesson: numeric questions on number-less chunks).
 """
@@ -28,7 +29,7 @@ USER_TMPL = """아래는 {corp}의 {year} 사업연도 사업보고서({section_
 {text}
 
 이 본문만 읽고 답할 수 있는 질문을 2개 만드세요. 규칙:
-1. 질문에 회사명 "{corp}"과 "{year} 사업연도"를 반드시 넣습니다.
+{rule1}
 2. 본문 문장을 그대로 베끼지 말고, 투자자나 학생이 실제로 물을 법한 말로 바꿔 씁니다.
 3. 본문에 답이 분명히 있는 질문만 만듭니다. 본문에 없는 내용(미래 주가, 다른 회사 등)은 묻지 않습니다.
 {rule4}
@@ -37,6 +38,7 @@ USER_TMPL = """아래는 {corp}의 {year} 사업연도 사업보고서({section_
 출력 형식(JSON만):
 {{"questions": [{{"question": "...", "answer": "본문 근거로 한 짧은 답", "is_numeric": true}}, {{"question": "...", "answer": "...", "is_numeric": false}}]}}"""
 SECTION_NAME = {"II": "II. 사업의 내용", "IV": "IV. 이사의 경영진단 및 분석의견"}
+RULE1_DEFAULT = '1. 질문에 회사명 "{corp}"과 "{year} 사업연도"를 반드시 넣습니다.'
 RULE4 = {
     None: "4. 2개 중 하나는 가능하면 숫자(금액, 비율, 개수 등)를 묻는 질문으로 합니다. 본문에 숫자가 없으면 둘 다 서술형으로 합니다.",
     True: "4. 2개 중 하나는 본문 표에 있는 숫자(금액, 비율, 개수 등) 하나를 묻는 질문으로 하고, 답에는 그 숫자를 본문에 적힌 그대로(단위 포함) 씁니다.",
@@ -66,7 +68,9 @@ def main() -> None:
     msgs = [[{"role": "system", "content": SYSTEM},
              {"role": "user", "content": USER_TMPL.format(corp=c["corp_name"], year=c["fiscal_year"],
                                                           section_name=c.get("section_path") or SECTION_NAME[c["section"]],
-                                                          rule4=RULE4[c.get("value_table")],
+                                                          rule1=c.get("rule1") or RULE1_DEFAULT.format(
+                                                              corp=c["corp_name"], year=c["fiscal_year"]),
+                                                          rule4=RULE4[c.get("rule4_key", c.get("value_table"))],
                                                           text=c["text"])}] for c in chunks]
     t0 = time.time()
     outs = llm.chat(msgs, sp)
