@@ -7,7 +7,9 @@ RRF + filter + reranker(s). Metrics overall and by question type; paired bootstr
 own gold) and McNemar vs public KURE in the same configuration.
 
 Usage: CUDA_VISIBLE_DEVICES=0 python scripts/eval_evalset.py [--file data/eval/evalset_draft.jsonl]
-Output: outputs/midterm/eval_evalset_draft.json
+       python scripts/eval_evalset.py --file data/eval/evalset_v1.jsonl --split dev --tag v1_dev   (selection)
+       python scripts/eval_evalset.py --file data/eval/evalset_v1.jsonl --split test --tag v1_test (once)
+Output: outputs/midterm/eval_evalset_<tag>.json (+ by_origin: llm vs human_proxy)
 """
 from __future__ import annotations
 
@@ -37,9 +39,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--file", default=str(ROOT / "data/eval/evalset_draft.jsonl"))
     ap.add_argument("--tag", default="draft")
+    ap.add_argument("--split", default="all", choices=["all", "dev", "test"],
+                    help="evalset_v1: use only that split (dev for selection, test once)")
     args = ap.parse_args()
     items = [json.loads(l) for l in open(args.file, encoding="utf-8")]
-    items = [x for x in items if x["type"] in TYPE_NAME and x["gold_chunk_ids"]]
+    items = [x for x in items if x["type"] in TYPE_NAME and x["gold_chunk_ids"]
+             and (x.get("review") or {}).get("status") != "discarded"]
+    if args.split != "all":
+        items = [x for x in items if x.get("split") == args.split]
     corpus = pd.read_json(ROOT / "data/processed/corpus_a.jsonl", lines=True, dtype={"rcept_no": str, "chunk_id": str})
     ids = corpus.chunk_id.to_numpy()
     corp_arr, year_arr = corpus.corp_name.to_numpy(), corpus.fiscal_year.to_numpy()
@@ -150,7 +157,7 @@ def main() -> None:
         return [f for f in out_ if len(f) >= 5]
 
     def lenient_gold(x):
-        if x["type"] == 4:
+        if x["type"] == 4 or not x.get("source"):  # narrative (incl. narrative year/company comparisons)
             return set(x["gold_chunk_ids"])
         e, src = x["answer_extra"], x["source"]
         if x["type"] == 1:
@@ -175,7 +182,11 @@ def main() -> None:
     by_type_len = {f"{k} | {TYPE_NAME[t]}": metrics([v[i] for i in np.where(types == t)[0]],
                                                     [gold_len[i] for i in np.where(types == t)[0]])
                    for k, v in R.items() for t in TYPE_NAME if (types == t).sum()}
-    out = {"file": args.file, "n_items": len(items), "by_type_n": {TYPE_NAME[t]: int((types == t).sum()) for t in TYPE_NAME},
+    origins = np.array([x.get("origin", "llm") for x in items])
+    by_origin = {f"{k} | {o}": metrics([v[i] for i in np.where(origins == o)[0]], [gold[i] for i in np.where(origins == o)[0]])
+                 | {"n": int((origins == o).sum())} for k, v in R.items() for o in sorted(set(origins))}
+    out = {"file": args.file, "split": args.split, "n_items": len(items), "by_origin": by_origin,
+           "by_origin_n": {o: int((origins == o).sum()) for o in sorted(set(origins))}, "by_type_n": {TYPE_NAME[t]: int((types == t).sum()) for t in TYPE_NAME},
            "chosen_on_fdb_dev": {"embedding": sel_e, "reranker": sel_r["best_reranker"]},
            "results": res, "by_type": by_type, "paired_vs_public": paired,
            "lenient_gold_sizes": {"strict_mean": float(np.mean([len(g) for g in gold])),
