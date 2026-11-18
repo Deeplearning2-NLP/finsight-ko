@@ -138,9 +138,51 @@ def main() -> None:
         d = rr(v, gold) - rr(ref, gold)
         e["MRR@10"] = {"diff": float(d.mean()), "bootstrap": cluster_bootstrap(d, clusters)}
         paired.append(e)
+    # Lenient gold for numeric types (analysis): any chunk of the question's company from fiscal year y or y+1
+    # (the next report repeats y as the prior-year column) that contains the answer figure string. The strict gold
+    # keeps only same-year core-section chunks, capped at 8.
+    def figs(v):
+        out_ = []
+        for div in (1e6, 1e3, 1, 1e8):
+            x = abs(v) / div
+            if x >= 1 and abs(x - round(x)) < 1e-6:
+                out_.append(f"{int(round(x)):,}")
+        return [f for f in out_ if len(f) >= 5]
+
+    def lenient_gold(x):
+        if x["type"] == 4:
+            return set(x["gold_chunk_ids"])
+        e, src = x["answer_extra"], x["source"]
+        if x["type"] == 1:
+            want = [(src[0]["corp"], {src[0]["fiscal_year"], src[0]["fiscal_year"] + 1}, x["answer_value"])]
+        elif x["type"] == 2:
+            later = max(s["fiscal_year"] for s in src)
+            want = [(src[0]["corp"], {later, later + 1}, e["value_to"])]
+        else:
+            want = [(src[0]["corp"], {src[0]["fiscal_year"], src[0]["fiscal_year"] + 1}, e["value_a"]),
+                    (src[1]["corp"], {src[1]["fiscal_year"], src[1]["fiscal_year"] + 1}, e["value_b"])]
+        g = set(x["gold_chunk_ids"])
+        for corp_, ys, v in want:
+            fs = figs(v)
+            if not fs:
+                continue
+            sel = np.where((corp_arr == corp_) & np.isin(year_arr, list(ys)))[0]
+            g |= {ids[j] for j in sel if any(f in texts[j] for f in fs)}
+        return g
+
+    gold_len = [lenient_gold(x) for x in items]
+    res_len = {k: metrics(v, gold_len) for k, v in R.items()}
+    by_type_len = {f"{k} | {TYPE_NAME[t]}": metrics([v[i] for i in np.where(types == t)[0]],
+                                                    [gold_len[i] for i in np.where(types == t)[0]])
+                   for k, v in R.items() for t in TYPE_NAME if (types == t).sum()}
     out = {"file": args.file, "n_items": len(items), "by_type_n": {TYPE_NAME[t]: int((types == t).sum()) for t in TYPE_NAME},
            "chosen_on_fdb_dev": {"embedding": sel_e, "reranker": sel_r["best_reranker"]},
-           "results": res, "by_type": by_type, "paired_vs_public": paired}
+           "results": res, "by_type": by_type, "paired_vs_public": paired,
+           "lenient_gold_sizes": {"strict_mean": float(np.mean([len(g) for g in gold])),
+                                  "lenient_mean": float(np.mean([len(g) for g in gold_len]))},
+           "results_lenient": res_len, "by_type_lenient": by_type_len}
+    (M / f"rankings_evalset_{args.tag}.json").write_text(json.dumps(
+        {"qids": [x["qid"] for x in items], "rankings": R}, ensure_ascii=False))
     (M / f"eval_evalset_{args.tag}.json").write_text(json.dumps(out, ensure_ascii=False, indent=1))
     print(pd.DataFrame(res).T.round(3).to_string())
 
