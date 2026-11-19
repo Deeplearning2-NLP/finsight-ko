@@ -1,1 +1,1 @@
-{"student_ids":{},"human":{}}
+{"student_ids": {"백윤우": "2022312709", "임병건": "2022312214", "박채영": "2023314778"}, "human": {"pairs_n": 99, "pairs_ok": 54, "pairs_copy": 4, "pairs_amb": 27, "pairs_err": 14, "pairs_bad_rate": "41.4%", "pairs_bad_ci": "[32.2, 51.3]", "pairs_use_rate": "58.6%", "pairs_err_rate": "14.1%", "eval_n": 30, "eval_pass": 7, "eval_rev": 23, "eval_drop": 0}, "error_review": "팀 검토 진행 중"}

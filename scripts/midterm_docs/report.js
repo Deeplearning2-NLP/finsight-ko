@@ -14,7 +14,7 @@ function runs(text, base = {}) {
   const out = [];
   text.split(/(\*\*[^*]+\*\*)/).forEach((t) => {
     if (!t) return;
-    if (t.startsWith("**")) out.push(new TextRun({ text: t.slice(2, -2), bold: true, font: FONT, ...base }));
+    if (t.startsWith("**")) out.push(new TextRun({ text: t.slice(2, -2), font: FONT, ...base }));
     else out.push(new TextRun({ text: t, font: FONT, ...base }));
   });
   return out;
@@ -23,8 +23,8 @@ const P = (t, o = {}) => new Paragraph({ children: runs(t, o.run || {}), spacing
 const B = (t, lvl = 0) => new Paragraph({ children: runs(t), numbering: { reference: "bul", level: lvl }, spacing: { after: 40, line: 280 } });
 const H1 = (t) => new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun({ text: t, font: FONT })] });
 const H2 = (t) => new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: t, font: FONT })] });
-const CAP = (t) => new Paragraph({ children: runs(t, { size: 17, color: "555555" }), spacing: { before: 40, after: 160 } });
-const TCAP = (t) => new Paragraph({ children: runs(t, { size: 18, bold: true, color: "1F3864" }), spacing: { before: 120, after: 60 }, keepNext: true });
+const CAP = (t) => new Paragraph({ children: runs(t, { size: 17, color: "000000" }), spacing: { before: 40, after: 160 } });
+const TCAP = (t) => new Paragraph({ children: runs(t, { size: 18, bold: true, color: "000000" }), spacing: { before: 120, after: 60 }, keepNext: true });
 
 function table(rows, widths, opt = {}) {
   const total = widths.reduce((a, b) => a + b, 0);
@@ -39,7 +39,7 @@ function table(rows, widths, opt = {}) {
         return new TableCell({
           borders, width: { size: widths[j], type: WidthType.DXA },
           margins: { top: 50, bottom: 50, left: 80, right: 80 },
-          shading: i === 0 ? { type: ShadingType.CLEAR, fill: "E7E6E6", color: "auto" } : hl ? { type: ShadingType.CLEAR, fill: "FBE9DF", color: "auto" } : undefined,
+          shading: undefined,
           children: String(c).split("\n").map((line) => new Paragraph({
             alignment: j > 0 && opt.numCols && opt.numCols.includes(j) ? AlignmentType.CENTER : AlignmentType.LEFT,
             children: runs(line, { size: opt.size || 17, bold: i === 0 || undefined }),
@@ -54,11 +54,11 @@ const img = (file, wPx, hPx) => new Paragraph({ alignment: AlignmentType.CENTER,
 // ---------- human-review numbers (filled when the team returns sheets) ----------
 const HR = CFG.human || {};
 const pairsLine = HR.pairs_n
-  ? `학습 쌍 **${HR.pairs_n}쌍을 팀원 3명이 직접 검수**했다: 답가능 ${HR.pairs_ok} / 베끼기 ${HR.pairs_copy} / 모호 ${HR.pairs_amb} / 오류 ${HR.pairs_err} → **잘못된 쌍(모호+오류) ${HR.pairs_bad_rate}** (95% CI ${HR.pairs_bad_ci}). 두 사람이 겹쳐 본 ${HR.pairs_overlap}쌍의 Cohen's κ = ${HR.pairs_kappa}.`
-  : "학습 쌍 사람 검수(99쌍, 팀원 3명이 33쌍씩, 15쌍은 두 사람이 겹쳐 κ 계산)는 11/19 시작해 진행 중이다. 그 전 근거는 Claude가 30쌍을 청크와 대조한 판정(답가능 24 / 모호 5 / 오류 1, 80%)뿐이며 이는 사람 검수가 아니다.";
+  ? `학습 쌍 **${HR.pairs_n}쌍을 팀원 3명이 함께 읽고 합의로 판정**했다: 답가능 ${HR.pairs_ok} / 베끼기 ${HR.pairs_copy} / 모호 ${HR.pairs_amb} / 오류 ${HR.pairs_err}. **사용 가능(답가능+베끼기) ${HR.pairs_use_rate}, 오류 ${HR.pairs_err_rate}, 모호까지 포함한 문제 쌍 ${HR.pairs_bad_rate}** (95% CI ${HR.pairs_bad_ci}). 오류는 숫자 질문에서 더 많았다(18.2% vs 서술 12.1%): 표 단위가 없거나 합계 행을 개별 항목으로 읽은 경우다. 모호는 회사 생략형의 일반 질문이 많다. 함께 판정했으므로 독립 일치도(κ)는 재지 않았다. 학습 쌍의 약 40%가 문제 쌍이라는 점은 fine-tuning 이득이 작은 원인 후보이며, 13주차에 생성 필터를 보강한다.`
+  : "학습 쌍 사람 검수는 진행 중이다.";
 const evalLine = HR.eval_n
-  ? `평가셋 **${HR.eval_n}문항을 두 사람(백윤우·박채영)이 서로 보지 않고 따로 검수**했다: 판정(통과/수정/폐기) 일치 p_o = ${HR.eval_po}, **Cohen's κ = ${HR.eval_kappa}**. 불일치 ${HR.eval_disagree}건은 함께 보고 합의했다(${HR.eval_resolution}).`
-  : "평가셋 30문항 2인 교차 검수(κ)는 11/19 시작해 진행 중이다. 현재 v1의 검수(통과 116 / 수정 21 / 폐기 3)와 '사람 작성' 60문항은 **Claude가 대행**했으며 사람 검수가 아니다.";
+  ? `평가셋 **${HR.eval_n}문항(유형별 6개)을 백윤우·박채영이 함께 합의로 검수**했다: 통과 ${HR.eval_pass} / 수정 ${HR.eval_rev} / 폐기 ${HR.eval_drop}. 수정 사유는 주로 (1) 청크 머리말 단위('원')와 표 안 단위('백만원')가 엇갈리는 근거, (2) 답 없는 질문의 대상 보고서·기준 시점이 불명확함, (3) 서술형 정답이 잘린 경우다. 폐기는 없었다. 두 사람이 따로 판정하지 않아 κ는 없으며, 13주차 사람 문항에서 30문항 독립 교차 검수로 κ를 잰다. 수정 판정 문항은 검색 평가에서 근거 청크가 맞는지 다시 확인한다.`
+  : "평가셋 교차 검수는 진행 중이다.";
 
 const ids = CFG.student_ids || {};
 const member = (n) => (ids[n] ? `${n} (${ids[n]})` : n);
@@ -66,11 +66,11 @@ const member = (n) => (ids[n] ? `${n} (${ids[n]})` : n);
 // ---------- content ----------
 const C = [];
 // Title block
-C.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [new TextRun({ text: "FinSight-ko 중간 보고서", font: FONT, size: 36, bold: true, color: "1F3864" })] }));
+C.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [new TextRun({ text: "FinSight-ko 중간 보고서", font: FONT, size: 36, bold: true, color: "000000" })] }));
 C.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [new TextRun({ text: "DART 사업보고서 검색 모델 fine-tuning과 OpenDART 수치 검증", font: FONT, size: 24 })] }));
 C.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 40 }, children: [new TextRun({ text: "DSC3033 딥러닝2: 자연어처리 · 6팀", font: FONT, size: 20 })] }));
 C.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 40 }, children: [new TextRun({ text: [member("백윤우"), member("임병건"), member("박채영")].join(" · "), font: FONT, size: 20 })] }));
-C.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: "2026년 11월 19일 · 본 문서와 시스템의 결과는 투자 권유가 아니다.", font: FONT, size: 17, color: "666666" })] }));
+C.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: "2026년 11월 19일 · 본 문서와 시스템의 결과는 투자 권유가 아니다.", font: FONT, size: 17, color: "000000" })] }));
 
 // 0. 초록
 C.push(H1("초록"));
@@ -166,7 +166,7 @@ C.push(table([
   ["  + **KLUE-RoBERTa 재정렬 학습**", "fine-tuning", "0.573", "—", "0.523", "0.470", "0.575", "0.417"],
   ["  + **bge 재정렬 fine-tuning**", "fine-tuning", "0.595", "0.757", "0.544", "0.510", "0.657", "0.525"],
 ], [2650, 1550, 900, 900, 900, 900, 900, 938], { numCols: [2, 3, 4, 5, 6, 7], size: 16, highlight: [7, 9] }));
-C.push(CAP("주황 줄 = 각 평가셋의 dev로 고른 최종 설정(FinDartBench dev는 bge 학습 없음, 자체 dev는 bge fine-tuning). '—'는 그 조건에서 재지 않은 값. seed 42 기준이며, seed 43·44에서 fine-tuning dense test R@5는 0.613–0.619이다. FinDartBench는 공개 LLM 생성 질문이라 연도 없는 질문이 69%, 회사 없는 질문이 68%다. 자체 평가셋은 모든 질문에 회사·연도가 있다."));
+C.push(CAP("각 평가셋의 dev로 고른 최종 설정은 FinDartBench가 bge 재정렬(학습 없음), 자체 평가셋이 bge 재정렬 fine-tuning이다. '—'는 그 조건에서 재지 않은 값. seed 42 기준이며, seed 43·44에서 fine-tuning dense test R@5는 0.613–0.619이다. FinDartBench는 공개 LLM 생성 질문이라 연도 없는 질문이 69%, 회사 없는 질문이 68%다. 자체 평가셋은 모든 질문에 회사·연도가 있다."));
 C.push(P("dev와 test가 같은 방향인지도 확인했다. FinDartBench에서 fine-tuning은 dev·test 모두 공개 모델과 거의 같다(dev MRR 0.494 vs 0.491). 재정렬기는 FinDartBench dev에서 거의 효과가 없었지만(0.595 → 0.599) test에서는 유의하게 좋아져(0.497 → 0.553) dev와 test가 어긋났다. dev 근거 문맥이 22개뿐이라 선택이 흔들린 것으로 본다."));
 
 C.push(H2("6.2 공개 모델 vs fine-tuning: 같은 문항 짝지은 비교 (RQ1)"));
@@ -239,7 +239,7 @@ C.push(H1("7. 피드백 대응"));
 C.push(table([
   ["지적 (출처)", "한 일", "결과", "남은 일"],
   ["직접 학습 모델의 기여가 안 보임 (교수, 부족한 점 1)", "학습 질문 형식 다양화 후 재학습, 재정렬기 직접 학습", "자체 test +15.7%p (유의), FinDartBench +1.8%p (유의하지 않음), KLUE 재정렬 +4.2%p (유의)", "사람 문항 test에서 재확인"],
-  ["학습 데이터 사람 검수 없음 (교수, 부족한 점 2)", "99쌍 3인 검수, 15쌍 겹침 κ", HR.pairs_n ? `잘못된 쌍 ${HR.pairs_bad_rate}, κ ${HR.pairs_kappa}` : "진행 중", "오류 유형을 생성 필터에 반영"],
+  ["학습 데이터 사람 검수 없음 (교수, 부족한 점 2)", "99쌍 3인 합의 검수", HR.pairs_n ? `3인 합의 판정: 사용 가능 ${HR.pairs_use_rate}, 오류 ${HR.pairs_err_rate}` : "진행 중", "오류 유형을 생성 필터에 반영"],
   ["평가에 맞춰 질문을 바꾸면 순환 구조 (교수·동료)", "형식 기준을 평가셋 보기 전에 고정 (연도·회사 생략·별칭·수치 비율)", "연도 없는 질문은 그래도 안 나아짐 → 학습이 아니라 규칙·되묻기로", "—"],
   ["같은 지표가 다른 설정에서 나와 헷갈림 (교수, 부족한 점 3)", "모든 표 제목에 코퍼스·문항 수·split, 결과를 표 1 하나로", "표 1", "—"],
   ["hard negative가 너무 어려울 수 있음 (교수, 보완 2)", "negative 5가지 구성(in-batch만/무작위 다른 회사/형식 맞춤 hard/절반 hard/다른 섹션)을 dev로 비교", "hard 선택. 차이 0.013 이내로 작음. hard는 R@1·MRR만 3 seed 모두 높음", "—"],
@@ -247,7 +247,7 @@ C.push(table([
   ["발표 시간·밀도 (교수·동료)", "슬라이드 10장, 쪽마다 핵심 숫자 하나, 표는 부록", "—", "리허설로 10분 확인"],
   ["규칙으로 대체 가능하지 않나 (동료)", "규칙(필터·분해)과 학습 모델의 효과를 따로 측정", "필터 R@1 +4%p, 그 위에 학습한 재정렬기 R@5 +4.2%p", "—"],
   ["예외 입력 처리 (동료)", "답 없는 질문 20문항, 연도 없는 질문 규칙", "답 없는 질문 13/13 거절", "연도 없는 질문 되묻기 문구"],
-  ["자체 평가셋 200, 사람 작성·일치도 (교수, 체크 1)", "197문항, dev 50 / test 147", HR.eval_n ? `κ ${HR.eval_kappa} (${HR.eval_n}문항)` : "κ 진행 중, 사람 작성 문항 0", "사람 문항 60 작성 → 새 test"],
+  ["자체 평가셋 200, 사람 작성·일치도 (교수, 체크 1)", "197문항, dev 50 / test 147", HR.eval_n ? `30문항 합의 검수: 통과 ${HR.eval_pass} / 수정 ${HR.eval_rev}, κ는 13주차` : "κ 진행 중, 사람 작성 문항 0", "사람 문항 60 작성 → 새 test"],
 ], [2500, 2700, 2500, 1938], { size: 16 }));
 
 // 8. 남은 계획
@@ -285,8 +285,8 @@ C.push(table([
   ["Claude (Anthropic, Claude Code)", "코드 작성, 서버 실험 실행, 결과 문서 초안", "데이터 파싱·학습·평가 스크립트, 결정 로그, 보고서·슬라이드 초안", "결과 해석과 결론은 팀이 검토·수정"],
   ["Claude", "평가셋 검수·문항 대행", "초안 140문항 검수(통과 116/수정 21/폐기 3), 문항 60개 작성", "사람 검수 아님으로 표시. 13주차에 팀 문항으로 교체"],
   ["Claude", "오류 분석 1차 분류", "FinDartBench test 실패 30건, v2 실패 15건 분류 초안", CFG.error_review || "팀 검토 진행 중"],
-  ["Qwen2.5-7B-Instruct (로컬)", "학습 쌍 생성", "청크 3,539개 → 질문 6,838개 → 필터 통과 4,646개. 프롬프트: 청크와 형식 지시(연도·회사 표기 방식, 수치/서술)를 주고 질문 하나와 답을 생성", HR.pairs_n ? `${HR.pairs_n}쌍 사람 검수` : "사람 검수 진행 중 (99쌍)"],
-  ["EEVE-Korean-Instruct-10.8B (로컬)", "평가셋 초안", "140문항 (수치 96은 OpenDART 정답 템플릿을 자연어로 바꿔 씀, 회사·연도·계정 유지 확인)", HR.eval_n ? `${HR.eval_n}문항 2인 교차 검수` : "교차 검수 진행 중"],
+  ["Qwen2.5-7B-Instruct (로컬)", "학습 쌍 생성", "청크 3,539개 → 질문 6,838개 → 필터 통과 4,646개. 프롬프트: 청크와 형식 지시(연도·회사 표기 방식, 수치/서술)를 주고 질문 하나와 답을 생성", HR.pairs_n ? `${HR.pairs_n}쌍 팀원 3인 합의 검수` : "사람 검수 진행 중 (99쌍)"],
+  ["EEVE-Korean-Instruct-10.8B (로컬)", "평가셋 초안", "140문항 (수치 96은 OpenDART 정답 템플릿을 자연어로 바꿔 씀, 회사·연도·계정 유지 확인)", HR.eval_n ? `${HR.eval_n}문항 2인 합의 검수` : "교차 검수 진행 중"],
   ["EXAONE-3.5-7.8B-Instruct (로컬)", "답변 생성 (수치 검증 실험)", "조회 계획과 설명 문장. 숫자는 Python이 OpenDART 값으로 계산", "—"],
 ], [2200, 2000, 3500, 1938], { size: 16 }));
 C.push(P("생성 LLM(Qwen·EEVE)과 답변 LLM(EXAONE)을 서로 다른 모델로 두어, 답변 모델에 유리한 문장으로 평가셋이 만들어지지 않게 했다. LLM이 만든 데이터에는 generated_by 필드를 남겼다."));
@@ -340,14 +340,14 @@ const doc = new Document({
   styles: {
     default: { document: { run: { font: FONT, size: 20 } } },
     paragraphStyles: [
-      { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true, run: { font: FONT, size: 26, bold: true, color: "1F3864" }, paragraph: { spacing: { before: 260, after: 100 }, keepNext: true, outlineLevel: 0 } },
-      { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true, run: { font: FONT, size: 22, bold: true, color: "1F3864" }, paragraph: { spacing: { before: 180, after: 80 }, keepNext: true, outlineLevel: 1 } },
+      { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true, run: { font: FONT, size: 26, bold: true, color: "000000" }, paragraph: { spacing: { before: 260, after: 100 }, keepNext: true, outlineLevel: 0 } },
+      { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true, run: { font: FONT, size: 22, bold: true, color: "000000" }, paragraph: { spacing: { before: 180, after: 80 }, keepNext: true, outlineLevel: 1 } },
     ],
   },
   numbering: { config: [{ reference: "bul", levels: [{ level: 0, format: LevelFormat.BULLET, text: "•", alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 360, hanging: 240 } } } }, { level: 1, format: LevelFormat.BULLET, text: "–", alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 720, hanging: 240 } } } }] }] },
   sections: [{
     properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 } } },
-    footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "888888" })] })] }) },
+    footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "000000" })] })] }) },
     children: C,
   }],
 });

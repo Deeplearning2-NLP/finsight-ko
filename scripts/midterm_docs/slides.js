@@ -1,7 +1,7 @@
 // FinSight-ko 중간 발표 슬라이드 (MidProgress 가이드 4.1 구성, 10장 + 백업). 프로포절 덱 스타일.
 const fs = require("fs");
 const pptxgen = require("pptxgenjs");
-const { applyTheme } = require("process.env.APPLY_THEME || "/mnt/skills/public/pptx/scripts/apply_theme.js"");
+const { applyTheme } = require(process.env.APPLY_THEME || "/mnt/skills/public/pptx/scripts/apply_theme.js");
 const CFG = JSON.parse(fs.readFileSync(__dirname + "/config.json", "utf8"));
 const HR = CFG.human || {};
 
@@ -53,8 +53,8 @@ function bottomNote(slide, label, text) {
   card(slide, 0.55, 6.2, 12.23, 0.55, "FFFFFF");
   T(slide, [{ text: label + "  ", options: { color: K.org, bold: true } }, { text, options: { color: K.ink } }], { x: 0.8, y: 6.2, w: 11.8, h: 0.55, fontSize: 12, valign: "middle" });
 }
-const pairsTxt = HR.pairs_n ? `잘못된 쌍(모호+오류) ${HR.pairs_bad_rate}, κ ${HR.pairs_kappa}` : "99쌍 3인 검수 진행 중";
-const evalTxt = HR.eval_n ? `30문항 2인 교차 검수 κ ${HR.eval_kappa}` : "30문항 2인 교차 검수 진행 중";
+const pairsTxt = HR.pairs_n ? `99쌍 3인 합의: 사용 가능 ${HR.pairs_use_rate} · 오류 ${HR.pairs_err_rate}` : "99쌍 3인 검수 진행 중";
+const evalTxt = HR.eval_n ? `30문항 2인 합의: 통과 ${HR.eval_pass} · 수정 ${HR.eval_rev} · 폐기 0 (κ는 13주차)` : "30문항 2인 교차 검수 진행 중";
 
 // ---------- 1. Cover ----------
 let s = pres.addSlide({ masterName: "COVER" });
