@@ -6,6 +6,8 @@ Input (question + chunk) is capped at 512 tokens (CLAUDE.md operating condition)
 Base models (compared on dev): klue/roberta-base (KLUE-BERT-style sentence-pair classifier, trained here)
 and BAAI/bge-reranker-v2-m3 (a public reranker, fine-tuned here; also evaluated zero-shot).
 
+Optional --mined data/train/pairs_m1_mined.jsonl adds retriever-mined negatives (scripts/mine_negatives_m.py).
+
 Usage: CUDA_VISIBLE_DEVICES=1 python scripts/train_reranker_m.py --base klue/roberta-base --tag klue
 Outputs: outputs/midterm/reranker-<tag>/ (git-ignored), outputs/midterm/reranker_meta_<tag>.json
 """
@@ -42,6 +44,7 @@ def main() -> None:
     ap.add_argument("--pairs", default=str(ROOT / "data/train/pairs_m1.jsonl"))
     ap.add_argument("--lr", type=float, default=2e-5)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--mined", default="", help="pairs_m1_mined.jsonl: add retriever-mined negatives (label 0)")
     args = ap.parse_args()
     pairs = pd.read_json(args.pairs, lines=True, dtype={"positive_id": str, "neg_year_id": str,
                                                          "neg_section_id": str, "neg_easy_id": str})
@@ -53,6 +56,12 @@ def main() -> None:
         for n in (r.neg_year, r.neg_section, r.neg_easy):
             if isinstance(n, str):
                 rows.append((r.anchor, n, 0.0))
+    if args.mined:
+        anchor_of = dict(zip(pairs.pair_id, pairs.anchor))
+        eval_chunks = set(pd.read_json(ROOT / "data/processed/corpus_a.jsonl", lines=True, dtype={"chunk_id": str}).chunk_id)
+        for m in map(json.loads, open(args.mined, encoding="utf-8")):
+            assert not set(m["mined_ids"]) & eval_chunks, "evaluation chunk in mined negatives"
+            rows += [(anchor_of[m["pair_id"]], t, 0.0) for t in m["mined"]]
     random.Random(args.seed).shuffle(rows)
 
     import torch

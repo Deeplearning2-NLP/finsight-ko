@@ -47,6 +47,11 @@ _YEAR = re.compile(r"(?<!\d)(20\d\d)\s*(?:년|사업\s*연도|회계\s*연도|\.
 _FY = re.compile(r"FY\s?'?(\d{4}|\d{2})(?!\d)", re.I)
 _YY = re.compile(r"['’‘](\d{2})\s?년")
 _PERIOD = re.compile(r"제\s*(\d{1,3})\s*기")
+# "2024 사업보고서" / "2024 보고서" (no 년/사업연도): ambiguous between the fiscal year the report covers and the
+# year it was filed (fiscal year - 1). How to read it is a rule chosen on dev (REPORT_RULE, 2026-11-19).
+_REPORT = re.compile(r"(?<!\d)(20\d\d)\s*(?:사업\s*)?보고서")
+REPORT_RULES = {None: lambda y: [], "fiscal": lambda y: [y], "filing": lambda y: [y - 1], "both": lambda y: [y - 1, y]}
+REPORT_RULE: str | None = "fiscal"  # chosen on evalset v1 dev (selection_v2.json, stage A)
 _RELATIVE = re.compile(r"전전기|당기|전기(?!차|요금|통신|사용|판매|설비|공급|사업|자동차)|전년|작년|올해|금년|최근|직전")
 
 
@@ -103,8 +108,11 @@ def _companies(q: str, aliases: dict[str, list[str]] | None = None,
     return list(found), spans, found
 
 
+_UNSET = object()
+
+
 def extract(q: str, aliases: dict[str, list[str]] | None = None,
-            period_offset: dict[str, int] | None = None) -> dict:
+            period_offset: dict[str, int] | None = None, report_rule=_UNSET) -> dict:
     """aliases/period_offset default to the 10 evaluation companies; pass others (e.g. training
     companies) to reuse the same rules. With custom aliases no brand prefixes are used."""
     companies, spans, comp_conf = _companies(q, aliases, None if aliases is None else {})
@@ -125,6 +133,10 @@ def extract(q: str, aliases: dict[str, list[str]] | None = None,
     for m in _YEAR.finditer(q):
         if not any(s <= m.start() < e for s, e in covered):
             add_span("year", m, [int(m.group(1))])
+    rule = REPORT_RULE if report_rule is _UNSET else report_rule
+    for m in _REPORT.finditer(q):
+        if rule and not any(s <= m.start() < e for s, e in covered):
+            add_span("year_report", m, REPORT_RULES[rule](int(m.group(1))), 0.8)
     for m in _FY.finditer(q):
         y = int(m.group(1))
         add_span("year_fy", m, [y if y > 100 else 2000 + y])

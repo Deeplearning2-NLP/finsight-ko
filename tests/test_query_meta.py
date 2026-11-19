@@ -59,3 +59,17 @@ def test_custom_aliases_for_training_companies():
     r = extract("DB손보의 2024 사업연도 손해율은?", aliases=al)
     assert r["companies"] == ["DB손해보험"] and r["fiscal_years"] == [2024]
     assert extract("KB스타 서비스", aliases=al)["companies"] == []  # no brand prefixes with custom aliases
+
+
+def test_report_year_rule():
+    q = "HMM 2024 사업보고서에서 운임 상승 요인은?"
+    assert extract(q, report_rule=None)["fiscal_years"] == []
+    assert extract(q, report_rule="fiscal")["fiscal_years"] == [2024]
+    assert extract(q, report_rule="filing")["fiscal_years"] == [2023]
+    assert extract(q, report_rule="both")["fiscal_years"] == [2023, 2024]
+    # "2024년 사업보고서" is already a plain year mention and is not double-counted
+    assert extract("2024년 사업보고서의 매출", report_rule="filing")["fiscal_years"] == [2024]
+
+
+def test_report_year_default_is_fiscal():
+    assert extract("2024 사업보고서 기준 HMM 매출")["fiscal_years"] == [2024]
