@@ -17,6 +17,8 @@ FinSight-ko · 6팀 (백윤우, 임병건, 박채영). 모든 숫자는 서버�
 | 연도 혼동 (test, 1위가 같은 회사·같은 섹션의 다른 연도) | RRF+필터 기준 공개 26.4% → 미세조정 26.2%: **줄지 않음**. 연도가 있는 질문 6.6%, **연도가 없는 질문(69%) 35%대가 남은 문제** |
 | 오류 30건 | 회사 없는 질문 11 / 연도 없는 질문 8 / 인접·유사 청크 5 / 라벨 불완전 4 / 모호 2 |
 | 평가셋 초안 (128문항, 검수 전) | 같은 설정에서 미세조정이 공개 대비 R@5 **+18.0%p (CI [+11.7, +25.0])**. 단, 문항 75%가 템플릿 수치 질문이라 학습 쌍 스타일과 가까움 → 검수·사람 문항으로 다시 잼 |
+| **수치 검증 (11/19, 15절)** | EXAONE-3.5-7.8B, v1 test 96문항: **LLM 단독 0.0% / RAG 4.2% / RAG + OpenDART 95.8%**, 근거 없는 금액 비율 RAG 40.4% → 0%. RAG 오답은 대부분 단위 환산(백만원) |
+| **KLUE-BERT (11/19, 16절)** | 학습 없이 dense R@5 0.04 → 미세조정 0.27 (KURE 미세조정 0.31). KLUE-BERT 재정렬기 v1 R@5 0.52 → 0.83 |
 | **성능 개선 v2 (11/19, 14절)** | dev로 단계별 선택: "N 사업보고서"=사업연도, 두 회사 질문을 회사별 단일 질문으로 분해, 후보 40, 연도 없으면 최신 사업연도. **v1 test R@5 0.657 → 0.888**(두 번째 test 사용), 기업 비교 0.20 → 0.83. **FinDartBench test R@1 0.399 → 0.592 / R@5 0.757 → 0.818**(연도 규칙 덕분, 데이터셋 성질 주의) |
 | **자체 평가셋 v1 (11/18, 검수·사람 문항 Claude 대행, 13절)** | 197문항, dev 50 / test 147. **test 134문항(정답 청크 있는 문항)**: 미세조정 − 공개 RRF+필터 R@5 **+15.7%p [+9.0, +22.4]**, 직접 학습 KLUE 재정렬 +12.0%p. dev로 고른 최종(M3 hard RRF+필터+bge-ft) **R@1 0.418 / R@5 0.657 / MRR 0.525**. 기업 비교형은 0.20으로 남은 문제 |
 
@@ -397,5 +399,58 @@ BM25 두 줄은 같은 조건의 기존 값(proposal-results 10.3 "필터 없음
 | 서술: 관련 있지만 정답이 아닌 청크 | 2 | HBM 계획 → 회사 연혁의 HBM 항목 |
 → 남은 개선 방향: 수치 질문은 "연결재무제표·요약재무정보" 섹션 우선(섹션 사전확률), 정답 라벨에 같은 숫자를 담은 다른 섹션 청크를 넣기(13절 관대 기준).
 
+## 15. 수치 검증 실험 (대표 실험 2, 11/19)
+설계는 실행 전에 `docs/decisions.md` 11/19에 고정했다. 답변 LLM은 **EXAONE-3.5-7.8B-Instruct**(로컬 vLLM, greedy)다. 학습 쌍·평가셋 생성 LLM과 다른 계열이다.
+- **문항:** 자체 평가셋 v1의 수치 문항(유형 1–3)과 답 없는 질문(유형 5). dev 26+7로 형식만 고치고 test 96+13은 한 번 돌렸다.
+- **dev에서 고친 것:** 숫자만 적힌 답의 파싱, S2 연산을 회사·연도 개수로 정하기, 국민은행 FY2022 빈 값 처리.
+- **세 시스템**
+  - S0 LLM 단독: 질문만 준다.
+  - S1 RAG: v2 검색 top-5 발췌를 주고 그 안에서 답하게 한다.
+  - S2 RAG + OpenDART: LLM이 조회 계획(회사·연도·계정·연산)을 세우고, Python이 OpenDART 캐시 값으로 계산한다. LLM은 그 값과 발췌로 설명만 쓴다.
+
+**표 16. 수치 검증, 자체 평가셋 v1 test (수치 96문항 + 답 없음 13문항)**
+| 시스템 | Numeric Claim Accuracy | Coverage | 답했을 때 정확도 | 근거 없는 금액 비율 | 답 없는 질문 거절 | 재작성 5문항 |
+|---|---|---|---|---|---|---|
+| S0 LLM 단독 | **0.000** | 0.115 | 0.000 (11개 모두 오답) | 해당 없음 (근거 없음) | 13/13 | 0/5 |
+| S1 RAG (top-5) | **0.042** | 0.552 | 0.075 (53개 중 49개 오답) | **40.4%** (52개 중) | 13/13 | 1/5 |
+| **S2 RAG + OpenDART** | **0.958** | 0.990 | 0.968 | **0.0%** (100개 중) | 13/13 | 4/5 |
+- 쌍대 (McNemar, 문항 부트스트랩 95% CI): S2 − S1 **+91.7%p [+85.4, +97.9]** (p<10⁻²⁴). S1 − S0 +4.2%p [+1.0, +8.3] (p=0.13).
+- 유형별 정확도 (S1 → S2): 단일 0.138 → 0.897 / 연도 비교 0.000 → 1.000 / 기업 비교 0.000 → 0.972.
+- **S1의 오답은 대부분 단위 환산이다.** 92문항 중 정답 4 / 모름 43 / 백만원을 원으로 바꾸지 않아 10⁶배 작은 값 26 / 천원 단위 오류 3 / 다른 숫자 20.
+  - 검색은 정답 표를 가져왔는데(14절 R@5 0.89), LLM이 표 단위를 반영하고 증감·차이를 계산하는 데서 틀린다. **"LLM은 숫자를 만들지 않고 설명만"이라는 설계(decisions 10/16)를 수치로 뒷받침한다.**
+- **S2 오답 4건은 모두 조회 계획 오류다.**
+  - "2024 영업이익" 질문을 2023→2024 증감으로 계획했다.
+  - "제22기"를 사업연도로 바꾸지 못했다.
+  - "영업손실" 계정 매핑과 두 회사 질문 계획에 각각 실패했다.
+  - 4건 모두 대행 문항이다(별칭·기수·구어체). 그래서 대행 문항 정확도는 0.818, LLM 문항은 1.000이다.
+  - 계획 단계에 `query_meta`(기수·별칭 규칙)를 함께 쓰면 줄일 수 있다.
+- 답 없는 질문 13개는 세 시스템 모두 거절했다(S2는 계획 단계에서 "조회 불가" 판정).
+- 한계: 계정은 6개(매출·영업이익·순이익·자산·부채·자본)뿐이다. 서술형 답변 품질은 아직 사람 평가를 하지 않았다.
+
+## 16. KLUE-BERT 비교 (분석, 선택 변경 없음)
+교수님 가이드의 "BERT-base 미세조정"에 맞춰 `klue/bert-base`(약 1.1억 파라미터)를 두 가지로 써 봤다.
+- **바이인코더:** 같은 학습 쌍 4,646개, 같은 설정(M3 hard)으로 대조 학습했다.
+- **재정렬기:** cross-encoder로 학습했다.
+
+**표 17. KLUE-BERT vs KURE (R@5; v1 test 134 / FinDartBench test 1,947)**
+| 모델 | dense v1 | dense FDB | v2 파이프라인 (재정렬 없음) v1 / FDB | v2 + bge-ft v1 / FDB |
+|---|---|---|---|---|
+| KLUE-BERT 학습 없음 | 0.037 | 0.185 | 0.239 / 0.705 | 0.567 / 0.814 |
+| KLUE-BERT 미세조정 (직접 학습) | 0.269 | 0.449 | 0.463 / 0.750 | 0.806 / 0.823 |
+| KURE-v1 공개 | 0.201 | 0.600 | 0.313 / 0.779 | 0.701 / 0.828 |
+| KURE-v1 미세조정 (M3 hard) | **0.313** | **0.614** | **0.522** / 0.784 | **0.888** / 0.818 |
+
+| 재정렬기 (M3 hard v2 파이프라인 안) | v1 test R@5 | v1 MRR | FDB test R@5 | FDB MRR |
+|---|---|---|---|---|
+| 없음 | 0.522 | 0.338 | 0.784 | 0.644 |
+| KLUE-RoBERTa 미세조정 | 0.784 | 0.553 | 0.818 | 0.665 |
+| **KLUE-BERT 미세조정** | 0.828 | 0.578 | 0.808 | 0.645 |
+| bge-reranker 미세조정 (최종) | **0.888** | **0.656** | 0.818 | **0.690** |
+- **KLUE-BERT는 학습 없이는 검색에 거의 못 쓴다** (dense R@5 0.04 / 0.19). 같은 쌍으로 미세조정하면 7배 / 2.4배가 된다(0.27 / 0.45). 하지만 검색용으로 사전학습된 KURE보다 낮다.
+  - → "검색 기준선은 KURE, 직접 학습 효과는 KLUE-BERT에서도 크게 나타난다"는 근거가 된다.
+- **KLUE-BERT 재정렬기는 재정렬 없음보다 R@5 +30.6%p (v1)**다. KLUE-RoBERTa보다 낫고 bge-ft보다는 낮다.
+- dev(v1 43 / FDB 672)에서도 순서가 같았다 (`outputs/midterm/eval_kluebert.json`).
+- v1 test는 이 분석에서 다시 쓰였다(세 번째 사용). 선택은 바꾸지 않았다.
+
 ## 재현
-`scripts/midterm_run.sh` (tmux, 단계별 `.done_*` 표시로 이어서 실행): `m1_chunks.py` → `pairs_pilot_generate.py --in m1_source_chunks.jsonl --prefix m1` (vLLM venv) → `m1_build.py` → `train_embedding_m.py --neg {none,easy,hard,hard50,section}` + `train_reranker_m.py --base {klue/roberta-base,BAAI/bge-reranker-v2-m3}` → `eval_m.py --encode` → `eval_m.py --split dev` (선택) → `eval_m.py --split test --tag final` → `m5_errors.py`. 평가셋 초안: `evalset_draft_run.sh` (`evalset_draft.py generate|build`) → `eval_evalset.py`. 자체 평가셋 v1: `evalset_v1.py` (검수 반영·대행 문항·분할) → `evalset_v1_run.sh` (dev → `select_evalset_dev.py` → test). v2: `mined_rr_run.sh` (`mine_negatives_m.py`, `train_reranker_m.py --mined`) → `v2_run.sh` (`eval_v2.py` dev 단계 A–E → test). seed 42.
+`scripts/midterm_run.sh` (tmux, 단계별 `.done_*` 표시로 이어서 실행): `m1_chunks.py` → `pairs_pilot_generate.py --in m1_source_chunks.jsonl --prefix m1` (vLLM venv) → `m1_build.py` → `train_embedding_m.py --neg {none,easy,hard,hard50,section}` + `train_reranker_m.py --base {klue/roberta-base,BAAI/bge-reranker-v2-m3}` → `eval_m.py --encode` → `eval_m.py --split dev` (선택) → `eval_m.py --split test --tag final` → `m5_errors.py`. 평가셋 초안: `evalset_draft_run.sh` (`evalset_draft.py generate|build`) → `eval_evalset.py`. 자체 평가셋 v1: `evalset_v1.py` (검수 반영·대행 문항·분할) → `evalset_v1_run.sh` (dev → `select_evalset_dev.py` → test). 수치 검증: `numeric_qa.py contexts|generate|grade`. KLUE-BERT: `klue_bert_run.sh` → `eval_kluebert.py`. v2: `mined_rr_run.sh` (`mine_negatives_m.py`, `train_reranker_m.py --mined`) → `v2_run.sh` (`eval_v2.py` dev 단계 A–E → test). seed 42.
