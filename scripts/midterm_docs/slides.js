@@ -13,11 +13,11 @@ const THEME = { name: "FinSight", headFontFace: F, bodyFontFace: F,
 const pres = new pptxgen();
 pres.layout = "LAYOUT_WIDE"; // 13.33 x 7.5
 pres.theme = { headFontFace: F, bodyFontFace: F };
-pres.title = "FinSight-ko 중간 발표";
+pres.title = "FinSight 중간 발표";
 const TOTAL = 10;
 
 pres.defineSlideMaster({ title: "CONTENT", background: { color: K.bg }, objects: [
-  { text: { text: "FINSIGHT-KO", options: { x: 0.55, y: 7.0, w: 3, h: 0.3, fontFace: F, fontSize: 9, color: K.mute, charSpacing: 4 } } },
+  { text: { text: "FINSIGHT", options: { x: 0.55, y: 7.0, w: 3, h: 0.3, fontFace: F, fontSize: 9, color: K.mute, charSpacing: 4 } } },
   { line: { x: 0.55, y: 6.92, w: 12.23, h: 0, line: { color: K.line, width: 0.75 } } },
 ] });
 pres.defineSlideMaster({ title: "COVER", background: { color: K.dark }, objects: [] });
@@ -59,7 +59,7 @@ const evalTxt = HR.eval_n ? `30문항 2인 합의: 통과 ${HR.eval_pass} · 수
 // ---------- 1. Cover ----------
 let s = pres.addSlide({ masterName: "COVER" });
 s.addShape(pres.shapes.RECTANGLE, { x: 0.65, y: 0.62, w: 0.13, h: 0.13, fill: { color: K.org }, line: { color: K.org } });
-T(s, "FINSIGHT-KO", { x: 0.88, y: 0.55, w: 4, h: 0.3, fontSize: 13, bold: true, color: "F2F0EC", charSpacing: 6 });
+T(s, "FINSIGHT", { x: 0.88, y: 0.55, w: 4, h: 0.3, fontSize: 13, bold: true, color: "F2F0EC", charSpacing: 6 });
 T(s, "DSC3033 딥러닝2 · TEAM 6", { x: 8.5, y: 0.55, w: 4.2, h: 0.3, fontSize: 11, color: "9A938A", align: "right", charSpacing: 4 });
 T(s, "기말 프로젝트 중간 발표", { x: 0.65, y: 2.0, w: 7, h: 0.4, fontSize: 15, color: "B5AEA4" });
 T(s, "FinSight:\nDART 공시 특화 검색 모델", { x: 0.65, y: 2.5, w: 7.2, h: 1.9, fontSize: 40, bold: true, color: "F2F0EC", lineSpacingMultiple: 1.1 });
