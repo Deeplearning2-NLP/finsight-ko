@@ -5,7 +5,7 @@ from matplotlib import font_manager as fm
 fm.fontManager.addfont("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")
 plt.rcParams["font.family"]="Noto Sans CJK JP"
 plt.rcParams["axes.unicode_minus"]=False
-GRAY="#C8C8C8"; INK="#000000"; ORG="#6E6E6E"; GRID="#E6E2DC"
+GRAY="#B5AEA4"; INK="#2B2724"; ORG="#E8622C"; GRID="#E6E2DC"
 def style(ax):
     for s in ("top","right"): ax.spines[s].set_visible(False)
     for s in ("left","bottom"): ax.spines[s].set_color("#9A938A")
@@ -31,7 +31,7 @@ x=np.arange(2); w=0.32
 ax.bar(x-w/2,pubv,w,color=GRAY,label="공개 KURE-v1"); ax.bar(x+w/2,ftv,w,color=INK,label="fine-tuning KURE-v1")
 for xx,v in zip(x-w/2,pubv): ax.text(xx,v+0.012,f"{v:.3f}",ha="center",fontsize=8,color="#4A453F")
 for xx,v in zip(x+w/2,ftv): ax.text(xx,v+0.012,f"{v:.3f}",ha="center",fontsize=8,color="#4A453F")
-for xx,d,c in zip(x,diff,["#000000","#000000"]): ax.text(xx,0.80,"차이 "+d,ha="center",fontsize=9,color=c,fontweight="bold")
+for xx,d,c in zip(x,diff,[ORG,"#6B655E"]): ax.text(xx,0.80,"차이 "+d,ha="center",fontsize=9,color=c,fontweight="bold")
 ax.set_xticks(x); ax.set_xticklabels(groups,fontsize=9); ax.set_ylim(0,0.9); ax.set_ylabel("dense R@5",fontsize=9)
 ax.legend(frameon=False,fontsize=8,loc="upper left",ncol=2,bbox_to_anchor=(0,1.14))
 fig.tight_layout(); fig.savefig("fig2_year_r5.png"); plt.close(fig)
