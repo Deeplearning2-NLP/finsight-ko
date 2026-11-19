@@ -26,7 +26,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 M = ROOT / "outputs" / "midterm"
-CTX = ROOT / "data/eval/qa_contexts_v1.jsonl"
+import os
+SUFFIX = ("_" + os.environ["FINSIGHT_CORPUS"]) if os.environ.get("FINSIGHT_CORPUS") else ""  # G1 corpus versions
+CTX = ROOT / f"data/eval/qa_contexts_v1{SUFFIX}.jsonl"
 MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
 ACCOUNTS = ["매출액", "영업이익", "당기순이익", "자산총계", "부채총계", "자본총계"]
 COMPANIES = ["삼성전자", "SK하이닉스", "LG전자", "현대자동차", "기아", "SK텔레콤", "한국전력공사", "국민은행", "HMM", "두나무"]
@@ -42,12 +44,12 @@ def items(split: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------- stage 1: contexts
-def contexts() -> None:
+def contexts(splits=("dev", "test")) -> None:
     sys.path.insert(0, str(ROOT / "scripts"))
     from eval_v2 import Env
     sel = json.loads((M / "selection_v2.json").read_text())["chosen"]
     with open(CTX, "w", encoding="utf-8") as f:
-        for split in ("dev", "test"):
+        for split in splits:
             env = Env("v1", split)
             its = items(split)
             env.q = [x["question"] for x in its]
@@ -220,12 +222,12 @@ def generate(split: str) -> None:
     need = [i for i, (k, _, _) in enumerate(exe) if k is not None]
     expl = run([prompt_explain(its[i]["question"], exe[i][1], chunks[its[i]["qid"]]) for i in need])
     expl_of = dict(zip(need, expl))
-    with open(M / f"qa_raw_{split}.jsonl", "w", encoding="utf-8") as f:
+    with open(M / f"qa_raw_{split}{SUFFIX}.jsonl", "w", encoding="utf-8") as f:
         for i, x in enumerate(its):
             f.write(json.dumps({"qid": x["qid"], "s0": s0[i], "s1": s1[i], "plan": plans[i],
                                 "tool": {"key": exe[i][0], "facts": exe[i][1], "trace": exe[i][2]},
                                 "s2_explain": expl_of.get(i)}, ensure_ascii=False) + "\n")
-    print("wrote", M / f"qa_raw_{split}.jsonl")
+    print("wrote", M / f"qa_raw_{split}{SUFFIX}.jsonl")
 
 
 # ---------------------------------------------------------------- stage 3: grade
@@ -247,7 +249,7 @@ def grade(split: str) -> None:
     from finsight.grading import grade_value
     from finsight.numbers import find_amounts, parse_krw, rel_close
     its = {x["qid"]: x for x in items(split)}
-    raw = [json.loads(l) for l in open(M / f"qa_raw_{split}.jsonl", encoding="utf-8")]
+    raw = [json.loads(l) for l in open(M / f"qa_raw_{split}{SUFFIX}.jsonl", encoding="utf-8")]
     ctx = {c["qid"]: c for c in map(json.loads, open(CTX, encoding="utf-8"))}
 
     def key_of(out: str):
@@ -328,8 +330,8 @@ def grade(split: str) -> None:
            "s2_tool_used": sum(r["s2_used_tool"] for r in num), "s2_tool_status": {
                k: sum(r["tool_status"] == k for r in rows) for k in {r["tool_status"] for r in rows}},
            "results": res, "paired": paired}
-    (M / f"qa_results_{split}.json").write_text(json.dumps(out, ensure_ascii=False, indent=1))
-    with open(M / f"qa_rows_{split}.jsonl", "w", encoding="utf-8") as f:
+    (M / f"qa_results_{split}{SUFFIX}.json").write_text(json.dumps(out, ensure_ascii=False, indent=1))
+    with open(M / f"qa_rows_{split}{SUFFIX}.jsonl", "w", encoding="utf-8") as f:
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     print(json.dumps({k: v for k, v in out.items() if k != "results"}, ensure_ascii=False, indent=1))
@@ -342,7 +344,7 @@ def main() -> None:
     ap.add_argument("stage", choices=["contexts", "generate", "grade"])
     ap.add_argument("--split", default="dev", choices=["dev", "test"])
     a = ap.parse_args()
-    {"contexts": lambda: contexts(), "generate": lambda: generate(a.split), "grade": lambda: grade(a.split)}[a.stage]()
+    {"contexts": lambda: contexts(("dev",) if SUFFIX else ("dev", "test")), "generate": lambda: generate(a.split), "grade": lambda: grade(a.split)}[a.stage]()
 
 
 if __name__ == "__main__":

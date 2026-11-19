@@ -37,10 +37,16 @@ from finsight.tokenize import TOKENIZERS
 ROOT = Path(__file__).resolve().parents[1]
 M = ROOT / "outputs" / "midterm"
 P = ROOT / "outputs" / "proposal"
-C = M / "cache_v2"
+import os
+# G1: FINSIGHT_CORPUS=unitfix_AB|unitfix_ABC selects data/processed/corpus_a_<tag>.jsonl (same chunk ids) with its
+# own caches and M3 embeddings (scripts/unit_fix_encode.py); FinDartBench's precomputed BM25 rows are not used then.
+CORPUS_TAG = os.environ.get("FINSIGHT_CORPUS", "")
+C = M / ("cache_v2" + (f"_{CORPUS_TAG}" if CORPUS_TAG else ""))
 RANGE = {2022, 2023, 2024}
 LATEST = 2024
 EMB = {"public": ("nlpai-lab/KURE-v1", P / "emb_kure_base.npy"), "m3": (str(M / "kure-m-hard"), M / "emb_m_hard.npy")}
+if CORPUS_TAG:
+    EMB = {"m3": (str(M / "kure-m-hard"), M / f"emb_m_hard_{CORPUS_TAG}.npy")}
 RERANKERS = {"bge-ft": M / "reranker-bge", "klue-ft": M / "reranker-klue", "bge-mined": M / "reranker-bge_mined",
              "klue-mined": M / "reranker-klue_mined", "bge-zero": "BAAI/bge-reranker-v2-m3"}
 BASE = {"emb": "m3", "yr": None, "dec": "off", "depth": 20, "rr": "bge-ft", "yl": "none"}
@@ -79,7 +85,7 @@ def key(cfg: dict) -> str:
 class Env:
     def __init__(self, data: str, split: str):
         C.mkdir(parents=True, exist_ok=True)
-        self.corpus = pd.read_json(ROOT / "data/processed/corpus_a.jsonl", lines=True,
+        self.corpus = pd.read_json(ROOT / f"data/processed/corpus_a{'_' + CORPUS_TAG if CORPUS_TAG else ''}.jsonl", lines=True,
                                    dtype={"rcept_no": str, "chunk_id": str})
         self.ids = self.corpus.chunk_id.to_numpy()
         self.texts = self.corpus.text.tolist()
@@ -112,7 +118,8 @@ class Env:
             self.types = np.zeros(len(Q), int)
             self.origin = np.array(["fdb"] * len(Q))
             self.clusters = Q.ctx_id.to_numpy()
-            self.bm_rows = {q: r for q, r in zip(self.q, np.load(P / "r1_bm25_scores.npz")[split].astype(np.float32))}
+            self.bm_rows = None if CORPUS_TAG else \
+                {q: r for q, r in zip(self.q, np.load(P / "r1_bm25_scores.npz")[split].astype(np.float32))}
         self._bm = None
         self._dense: dict[str, dict[str, np.ndarray]] = {}
         self._rr_cache: dict[str, dict] = {}

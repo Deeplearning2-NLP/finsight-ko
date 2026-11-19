@@ -95,10 +95,23 @@ def sanitize_xml(xml: bytes) -> bytes:
     return _ENG_ATTR.sub(b"", xml)
 
 
-def parse_document(xml: bytes) -> list[dict]:
-    """Flat list of blocks: {sec1, sec2, type: text|table, text | rows, n_head, unit}."""
+SMALL_HEADER_ROWS = 6
+STATEMENT_HEAD_RE = re.compile(r"제\s*\d+\s*기.*(현재|부터|까지)")  # statement title / period / unit tables ("연결 재무상태표 | 제 76 기 ... | (단위 : 백만원)")
+
+
+def parse_document(xml: bytes, unit_fix: bool = False) -> list[dict]:
+    """Flat list of blocks: {sec1, sec2, type: text|table, text | rows, n_head, unit}.
+
+    unit_fix (G1, 2026-11-19; default off so the existing corpus is reproduced exactly):
+      R1  a financial-statement header table (<= SMALL_HEADER_ROWS rows, "제 N 기" + "현재"/"부터·까지", with a unit,
+          e.g. "연결 재무상태표 | 제 76 기 2023.12.31 현재 | (단위 : 백만원)") passes its unit on to the next table
+          when that table has no unit of its own (before: only 1-row unit tables did).
+      R2  in a big table, a "단위" note that sits only in a 주당 (per-share) row ("기본주당이익 (단위 : 원)") is a row
+          note, not the table's unit, and is ignored.
+    """
     root = etree.fromstring(sanitize_xml(xml), etree.XMLParser(recover=True, huge_tree=True))
     blocks: list[dict] = []
+    carry = {"unit": None}  # R1: unit from the statement header just before (used only if the table has none)
 
     def walk(el, sec1: str, sec2: str, last_unit: list[str | None]):
         for ch in el:
@@ -134,11 +147,19 @@ def parse_document(xml: bytes) -> list[dict]:
                 if m and len(rows) <= 1:
                     last_unit[0] = m.group(1)
                     continue
+                if unit_fix and m and len(rows) > SMALL_HEADER_ROWS:  # R2: per-share row notes are not the unit
+                    rows_with_unit = [" ".join(r) for r in rows if UNIT_RE.search(" ".join(r))]
+                    if rows_with_unit and all("주당" in r for r in rows_with_unit):
+                        m = None
                 if rows and any(any(c for c in r) for r in rows):
+                    unit = last_unit[0] or (m.group(1) if m else None) or carry["unit"]
+                    carry["unit"] = None
                     blocks.append({"sec1": sec1, "sec2": sec2, "type": "table", "rows": rows,
                                    # a preceding "(단위 : 백만원)" wins; in-table matches are often row notes
-                                   "n_head": n_head, "unit": last_unit[0] or (m.group(1) if m else None)})
+                                   "n_head": n_head, "unit": unit})
                     last_unit[0] = None
+                    if unit_fix and len(rows) <= SMALL_HEADER_ROWS and m and STATEMENT_HEAD_RE.search(flat):
+                        carry["unit"] = m.group(1)  # R1: statement header -> next table
             else:
                 walk(ch, sec1, sec2, last_unit)
 
